@@ -73,7 +73,16 @@ def tts(text: str, voice: str, out: Path):
 
     async def go():
         await edge_tts.Communicate(text, voice, rate="+4%").save(str(out))
-    asyncio.run(go())
+    import time as _t
+    for attempt in range(4):  # Windows sometimes fails the websocket with WinError 10014; just retry
+        try:
+            asyncio.run(go())
+            return
+        except Exception as e:
+            if attempt == 3:
+                raise
+            print("tts retry %d: %s" % (attempt + 1, str(e)[:120]))
+            _t.sleep(2 * (attempt + 1))
 
 
 def srt_time(t: float) -> str:
