@@ -51,7 +51,7 @@ def _provider_info() -> dict:
         llm = LLM(p)
         return {"provider": p, "label": llm.label, "model": llm.model, "open_weights": llm.open_weights, "offline": p == "offline"}
     except LLMError as e:
-        return {"provider": p, "label": "misconfigured: %s" % e, "model": None, "open_weights": False, "offline": True}
+        return {"provider": p, "label": "Offline stub — model not configured yet (%s)" % e, "model": None, "open_weights": False, "offline": True}
 
 
 @app.get("/healthz")

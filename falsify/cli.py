@@ -21,7 +21,11 @@ def main(argv=None):
     ap.add_argument("--json", default=None, help="write the full result JSON here")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args(argv)
-    llm = LLM()
+    try:
+        llm = LLM()
+    except Exception as e:
+        print("model not configured (%s); using the offline stub" % e, file=sys.stderr)
+        llm = LLM("offline")
     print("provider: %s" % llm.label, file=sys.stderr)
     t0 = time.time()
 

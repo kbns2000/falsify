@@ -10,7 +10,7 @@ from . import ledger
 from .engine import attacks, backtest, data, verdict as V
 from .engine.spec import ClaimSpec, seal
 from .llm import agent
-from .llm.client import LLM, LLMError
+from .llm.client import LLM, LLMError, resolve_provider
 
 Emit = Callable[[str, dict], None]
 
@@ -39,7 +39,14 @@ def _load_for(spec: ClaimSpec):
 def run_claim(belief: str, *, dataset_id: str = data.DEFAULT_DATASET, asset_hint: str | None = None, emit: Emit | None = None, llm: LLM | None = None, claim_id: str | None = None, searcher: str | None = None) -> dict:
     emit = emit or (lambda *_: None)
     t0 = time.time()
-    llm = llm or LLM()
+    if llm is None:
+        try:
+            llm = LLM()
+        except LLMError as e:  # e.g. FALSIFY_LLM_PROVIDER=hf but HF_TOKEN not set yet
+            emit("provider.fallback", {"from": resolve_provider(), "error": str(e)[:200]})
+            llm = LLM("offline")
+            llm.label = "Offline stub (model not configured: %s)" % str(e)[:80]
+            llm.degraded_from = resolve_provider()
     if llm.provider != "offline" and not getattr(llm, "_probed", False):
         llm = _maybe_fallback(llm, emit)
     claim_id = claim_id or ledger.new_id()
