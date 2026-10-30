@@ -336,7 +336,7 @@
       const tb = $("#ledger-table tbody");
       tb.innerHTML = l.entries.map((e) => {
         const v = e.verdict || {};
-        return `<tr><td>${esc((e.sealed_at || "").replace("T", " ").replace("+00:00", ""))}</td><td><a href="/claim/${esc(e.id)}" data-nav="/claim/${esc(e.id)}"><b>${esc(e.title)}</b></a><div style="color:var(--muted);font-size:12px;max-width:320px;white-space:normal">${esc(e.belief)}</div></td><td>${esc(e.asset)}</td><td class="mono" title="${esc(e.entry)}">${esc(e.entry)} · ${e.bars}b ${esc(e.direction)}</td><td>${v.n_trades ?? ""}</td><td>${v.mean_net == null ? "" : c(v.mean_net)}</td><td><span class="vb ${esc(v.label || "PENDING")}">${esc(v.label || "PENDING")}</span></td><td class="mono" title="${esc(e.spec_hash)}">${esc((e.spec_hash || "").slice(0, 10))}…</td></tr>`;
+        return `<tr><td>${esc((e.sealed_at || "").replace("T", " ").replace("+00:00", "").slice(0, 16))}</td><td><a href="/claim/${esc(e.id)}" data-nav="/claim/${esc(e.id)}"><b>${esc(e.title)}</b></a><div style="color:var(--muted);font-size:12px;max-width:320px;white-space:normal">${esc(e.belief)}</div></td><td>${esc(e.asset)}</td><td class="mono" title="${esc(e.entry)}">${esc(e.entry)} · ${e.bars}b ${esc(e.direction)}</td><td>${v.n_trades ?? ""}</td><td>${v.mean_net == null ? "" : c(v.mean_net)}</td><td><span class="vb ${esc(v.label || "PENDING")}">${esc(v.label || "PENDING")}</span></td><td class="mono" title="${esc(e.spec_hash)}">${esc((e.spec_hash || "").slice(0, 8))}…</td></tr>`;
       }).join("") || `<tr><td colspan="8" style="color:var(--muted)">No claims yet. Seal the first one.</td></tr>`;
     } catch (e) { console.error(e); }
   }

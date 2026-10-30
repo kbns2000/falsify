@@ -65,7 +65,7 @@ table.mini{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}t
 .usage{color:var(--muted);font-size:12px;margin-top:12px;font-family:var(--mono)}
 .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--card)}
 table.ledger{width:100%;border-collapse:collapse;font-size:13.5px}table.ledger th,table.ledger td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}table.ledger th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
-table.ledger tr:hover td{background:var(--bg)}table.ledger td.mono{font-family:var(--mono);font-size:12px;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+table.ledger tr:hover td{background:var(--bg)}table.ledger td.mono{font-family:var(--mono);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis}table.ledger th,table.ledger td{padding:10px 9px}table.ledger td:nth-child(2) div{max-width:240px!important}
 .vb{display:inline-block;padding:3px 8px;border-radius:7px;font-size:11px;font-weight:800}.vb.FALSIFIED{background:color-mix(in srgb,var(--fail) 18%,transparent);color:var(--fail)}.vb.FRAGILE{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}.vb.SURVIVED{background:color-mix(in srgb,var(--pass) 18%,transparent);color:var(--pass)}.vb.INCONCLUSIVE,.vb.PENDING{background:color-mix(in srgb,var(--muted) 18%,transparent);color:var(--muted)}
 .error{border:1px solid var(--fail);background:color-mix(in srgb,var(--fail) 10%,transparent);border-radius:12px;padding:12px 14px;margin:12px 0}
 .foot{border-top:1px solid var(--line);color:var(--muted);font-size:13px;padding:18px 24px;text-align:center}.foot p{max-width:900px;margin:0 auto}

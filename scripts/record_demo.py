@@ -23,7 +23,7 @@ from playwright.sync_api import TimeoutError as PWTimeout, sync_playwright
 # Dwell targets in seconds (the narration in make_video.py is written to fit these).
 DWELL = {"home": 12, "type": 7, "understand": 18, "seal": 10, "test": 12, "attack": 20, "advocate": 16, "verdict": 20, "second": 20, "ledger": 13, "upload": 5, "outro": 8}
 BELIEF1 = "3일 연속 떨어지면 다음날 반등하니까 그때 산다"
-BELIEF2 = "When bitcoin's RSI goes under 30 it always bounces within a week"
+BELIEF2 = "When ETH's RSI goes under 30 it always bounces within a week"
 
 
 class Rec:
@@ -180,10 +180,14 @@ def run(args):
         page.fill("#belief", "")
         page.type("#belief", args.belief2, delay=int(35 * speed) + 5)
         try:
-            page.select_option("#asset-hint", args.asset1)
+            page.select_option("#asset-hint", args.asset2 or "")
         except Exception:
             pass
+        old_url = page.url
         page.click("#submit")
+        # wait until the new claim page has replaced the old one, so the old ".done" marks are gone
+        page.wait_for_function("u => location.href !== u && location.pathname.startsWith('/claim/')", arg=old_url, timeout=60000)
+        time.sleep(0.5)
         r.end()
         r.wait_stage("verdict", timeout_s=900)
         r.begin("second")
@@ -239,6 +243,7 @@ if __name__ == "__main__":
     ap.add_argument("--belief1", default=BELIEF1)
     ap.add_argument("--belief2", default=BELIEF2)
     ap.add_argument("--asset1", default="BTC/USDT")
+    ap.add_argument("--asset2", default="", help="asset hint for the second belief (default: auto from the text)")
     ap.add_argument("--chromium", default=None)
     ap.add_argument("--fast", action="store_true", help="quarter-length dwell times for a dry run")
     run(ap.parse_args())
