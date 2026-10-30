@@ -120,13 +120,14 @@ def report(spec: dict, bt: dict, findings: list[dict], verdict: dict, variants: 
     lang = spec.get("language", "en")
     label = verdict["label"]
     fails = [f for f in findings if f["status"] == "fail"]
+    warns = [f for f in findings if f["status"] == "warn"]
     passes = [f for f in findings if f["status"] == "pass"]
     n = bt.get("n_trades", 0)
     mean = bt.get("mean_net")
     if lang == "ko":
         head = {"FALSIFIED": "반증됨 — 이 믿음은 과거 데이터에서 사전등록한 기준을 넘지 못했습니다.", "FRAGILE": "취약함 — 본 검정은 넘었지만 반박 하나 이상이 결과를 깨뜨렸습니다.", "SURVIVED": "생존 — 준비한 반박을 모두 견뎠습니다. 미래 예측은 아닙니다.", "INCONCLUSIVE": "판정 불가 — 거래 수가 너무 적어 아무것도 말할 수 없습니다."}[label]
         lines = [head, "", "**무엇을 검정했나**", spec.get("plain_language", ""), "", "**가장 강한 반대 근거**"]
-        lines += ["- " + f["headline"] for f in fails] or ["- 없음"]
+        lines += (["- " + f["headline"] for f in fails] + ["- (약함) " + f["headline"] for f in warns]) or ["- 없음"]
         lines += ["", "**버틴 것**"] + (["- " + f["headline"] for f in passes[:3]] or ["- 없음"])
         lines += ["", "**판정을 바꿀 수 있는 것**", "- 같은 규칙을 더 긴 기간·다른 자산에서 사전등록해 다시 검정", "", "**주의**", "- 과거 자료만 봤습니다. 매수·매도 조언이 아닙니다. (오프라인 모드: 모델 없이 생성된 보고서)"]
         if n:
@@ -136,7 +137,7 @@ def report(spec: dict, bt: dict, findings: list[dict], verdict: dict, variants: 
     lines = [head, "", "**What was tested**", spec.get("plain_language", "")]
     if n:
         lines.append("%d trades, mean net return %.2f%% per trade." % (n, mean or 0))
-    lines += ["", "**Strongest evidence against**"] + (["- " + f["headline"] for f in fails] or ["- none"])
+    lines += ["", "**Strongest evidence against**"] + ((["- " + f["headline"] for f in fails] + ["- (weak) " + f["headline"] for f in warns]) or ["- none"])
     lines += ["", "**What held up**"] + (["- " + f["headline"] for f in passes[:3]] or ["- nothing"])
     lines += ["", "**What would change the verdict**", "- Pre-register the same rule on a longer window or a different asset and test again.", "", "**Caveats**", "- Past data only. Not investment advice. (Offline mode: this report was generated without a model.)"]
     return "\n".join(lines)

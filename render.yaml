@@ -13,8 +13,6 @@ services:
         value: 3.12.7
       - key: FALSIFY_LLM_PROVIDER
         value: hf
-      - key: FALSIFY_LLM_MODEL
-        value: meta-models/Muse-Glimmer-30B
       - key: HF_TOKEN
         sync: false
       - key: FALSIFY_MAX_CONCURRENT
