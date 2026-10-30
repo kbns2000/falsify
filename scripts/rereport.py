@@ -26,6 +26,8 @@ def main():
     a = ap.parse_args()
     llm = LLM()
     print("provider:", llm.label)
+    if llm.provider == "offline":
+        sys.exit("refusing to rewrite seed reports with the offline stub; configure a real model")
     d = os.path.join(SEED_DIR, "results")
     for fn in sorted(os.listdir(d)):
         path = os.path.join(d, fn)
