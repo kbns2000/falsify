@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+ledger/*.jsonl
+!ledger/.keep
+data/uploads/
+.env
+*.mp4
+*.webm
+node_modules/
