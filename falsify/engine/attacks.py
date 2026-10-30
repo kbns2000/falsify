@@ -205,6 +205,8 @@ def parameter_neighbourhood(df: pd.DataFrame, spec: ClaimSpec, bt: B.BacktestRes
         status, head = "fail", "Only the exact parameters work: %d of %d nearby variants are positive (median %s). That is the signature of curve fitting." % (sum(v > 0 for v in vals), len(vals), _fmt(med))
     elif bt.mean_net > 0 and bt.mean_net > 2 * max(vals):
         status, head = "warn", "The chosen parameters are far better than every neighbour (%s vs best neighbour %s)." % (_fmt(bt.mean_net), _fmt(max(vals)))
+    elif bt.mean_net > 0 and (share_pos < 0.67 or med < 0.25 * bt.mean_net):
+        status, head = "warn", "Neighbours are lukewarm: %d of %d nearby variants are positive, median %s vs %s for the chosen parameters." % (sum(v > 0 for v in vals), len(vals), _fmt(med), _fmt(bt.mean_net))
     else:
         status, head = "pass", "%d of %d nearby variants point the same way (median %s)." % (sum((v > 0) == (bt.mean_net > 0) for v in vals), len(vals), _fmt(med))
     return finding("neighbourhood", "Nearby parameters", status, head, table=rows, share_positive=share_pos, median_mean_net=med, original_mean_net=bt.mean_net)
@@ -263,19 +265,22 @@ def sample_size(bt: B.BacktestResult, spec: ClaimSpec) -> dict:
 
 # --------------------------------------------------------------------------- 7
 def multiple_testing(spec: ClaimSpec, prior_claims_same_asset: int, p_value: float | None) -> dict:
+    """Bonferroni over the beliefs *this searcher* has sealed on the same asset.
+
+    Testing ten ideas and reporting the best one is how most 'edges' are born; the ledger remembers."""
     k = prior_claims_same_asset + 1
     alpha_adj = spec.criterion.alpha / k
     if p_value is None:
-        return finding("multiple_testing", "How many beliefs have been tried?", "info", "This is claim #%d on %s in the ledger." % (k, spec.asset), claims_so_far=k, alpha=spec.criterion.alpha, alpha_adjusted=alpha_adj)
+        return finding("multiple_testing", "How many beliefs have you tried?", "info", "This is your belief #%d about %s." % (k, spec.asset), claims_so_far=k, alpha=spec.criterion.alpha, alpha_adjusted=alpha_adj)
     if k == 1:
-        status, head = "pass", "First sealed claim on %s in this ledger; no correction needed (alpha %.3f)." % (spec.asset, spec.criterion.alpha)
+        status, head = "pass", "Your first sealed belief about %s; no correction needed (alpha %.3f)." % (spec.asset, spec.criterion.alpha)
     elif p_value < alpha_adj:
-        status, head = "pass", "Survives a Bonferroni correction for %d sealed claims on %s (needs p < %.4f, got %.4f)." % (k, spec.asset, alpha_adj, p_value)
+        status, head = "pass", "Survives a Bonferroni correction for the %d beliefs you have sealed about %s (needs p < %.4f, got %.4f)." % (k, spec.asset, alpha_adj, p_value)
     elif p_value < spec.criterion.alpha:
-        status, head = "fail", "Significant alone (p = %.3f) but not after correcting for %d sealed claims on %s (needs p < %.4f). Try enough ideas and one will look good by chance." % (p_value, k, spec.asset, alpha_adj)
+        status, head = "fail", "Significant alone (p = %.3f) but not after correcting for the %d beliefs you have sealed about %s (needs p < %.4f). Try enough ideas and one will look good by chance." % (p_value, k, spec.asset, alpha_adj)
     else:
-        status, head = "info", "Not significant even before correction (p = %.3f)." % p_value
-    return finding("multiple_testing", "How many beliefs have been tried?", status, head, claims_so_far=k, alpha=spec.criterion.alpha, alpha_adjusted=alpha_adj, p_value=p_value)
+        status, head = "info", "Not significant even before correction (p = %.3f); you have sealed %d beliefs about %s." % (p_value, k, spec.asset)
+    return finding("multiple_testing", "How many beliefs have you tried?", status, head, claims_so_far=k, alpha=spec.criterion.alpha, alpha_adjusted=alpha_adj, p_value=p_value)
 
 
 # --------------------------------------------------------------------------- 8

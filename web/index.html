@@ -1,1 +1,102 @@
-<!doctype html><title>Falsify</title><p>UI pending</p>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Falsify — the devil's advocate for market beliefs</title>
+<meta name="description" content="Pre-register a trading belief as an exact rule, seal it, and let an AI agent try to break it on historical data. It never tells you what to buy.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f1115'/%3E%3Cpath d='M18 14h28v8H28v8h14v8H28v12h-10z' fill='%23ff5d5d'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/" data-nav="/"><span class="brand-mark">F</span><span class="brand-name">Falsify</span><span class="brand-tag">the devil's advocate for market beliefs</span></a>
+  <nav>
+    <a href="/" data-nav="/">New claim</a>
+    <a href="/ledger" data-nav="/ledger">Ledger</a>
+    <a href="https://github.com/kbns2000/falsify" target="_blank" rel="noopener">GitHub</a>
+    <span id="provider-badge" class="badge badge-muted" title="Which Meta model is answering">model: …</span>
+  </nav>
+</header>
+
+<main id="app">
+  <!-- ===== HOME ===== -->
+  <section id="view-home" class="view">
+    <div class="hero">
+      <h1>Say what you believe about the market.<br><span class="accent">An AI will try to prove it wrong.</span></h1>
+      <p class="lede">Falsify turns your belief into one exact rule, <b>seals it before looking at any result</b>, replays it on historical candles, then runs a battery of attacks: random entries, fees, time splits, nearby parameters, other assets, and a devil's advocate powered by Meta's open-weight Muse Glimmer. It never tells you what to buy.</p>
+    </div>
+
+    <form id="claim-form" class="claim-form" autocomplete="off">
+      <label class="field-label" for="belief">Your belief <span class="hint">any language · one rule at a time</span></label>
+      <textarea id="belief" name="belief" rows="3" maxlength="2000" placeholder="e.g. When bitcoin's RSI goes under 30 it always bounces within a week" required></textarea>
+      <div class="chips" id="examples"></div>
+      <div class="form-row">
+        <label class="inline">Asset hint
+          <select id="asset-hint"><option value="">auto (from the text)</option></select>
+        </label>
+        <label class="inline">Data
+          <select id="dataset"><option value="builtin:binance_daily">10 coins · daily · 2017→2026</option></select>
+        </label>
+        <label class="inline upload-label">Upload CSV
+          <input type="file" id="csv" accept=".csv,text/csv">
+        </label>
+        <button type="submit" id="submit" class="btn-primary">Try to break it</button>
+      </div>
+      <p class="form-note" id="form-note"></p>
+    </form>
+
+    <section class="scoreboard" id="scoreboard"></section>
+
+    <section class="how">
+      <h2>How a claim is tried</h2>
+      <ol class="steps">
+        <li><b>Understand.</b> The model rewrites your words as one testable rule in a tiny, safe condition language and lists every assumption it had to make. It may repair its own mistakes; it is forbidden from tuning the rule.</li>
+        <li><b>Seal.</b> The rule is hashed and chained to the public ledger <i>before</i> any result exists. No moving the goalposts afterwards.</li>
+        <li><b>Test.</b> A deterministic engine replays the rule: signal at the close, entry at the next open, fees on both sides. No model touches the numbers.</li>
+        <li><b>Attack.</b> Random entries with the same holding period, fee sensitivity, first half vs second half, nearby parameters, other assets, multiple-testing correction, sample size.</li>
+        <li><b>Advocate.</b> The model proposes extra counter-tests specific to your belief: the mirror-image trade, a different horizon, the asset you actually trade.</li>
+        <li><b>Verdict.</b> FALSIFIED, FRAGILE, SURVIVED (for now) or INCONCLUSIVE, decided by the numbers, explained by the model in your language.</li>
+      </ol>
+    </section>
+  </section>
+
+  <!-- ===== RUN / RESULT ===== -->
+  <section id="view-run" class="view hidden">
+    <div class="run-head">
+      <div>
+        <div class="eyebrow" id="run-eyebrow">Claim</div>
+        <h1 class="run-title" id="run-title">…</h1>
+        <p class="run-belief" id="run-belief"></p>
+      </div>
+      <div class="run-actions">
+        <a class="btn-ghost" href="/" data-nav="/">New claim</a>
+        <button class="btn-ghost" id="copy-link">Copy link</button>
+      </div>
+    </div>
+    <div class="pipeline" id="pipeline">
+      <article class="stage" data-stage="understand"><header><span class="stage-no">1</span><h2>Understand</h2><span class="stage-status"></span></header><div class="stage-body"></div></article>
+      <article class="stage" data-stage="seal"><header><span class="stage-no">2</span><h2>Seal</h2><span class="stage-status"></span></header><div class="stage-body"></div></article>
+      <article class="stage" data-stage="test"><header><span class="stage-no">3</span><h2>Test</h2><span class="stage-status"></span></header><div class="stage-body"></div></article>
+      <article class="stage" data-stage="attack"><header><span class="stage-no">4</span><h2>Attack</h2><span class="stage-status"></span></header><div class="stage-body"><ul class="findings" id="findings"></ul></div></article>
+      <article class="stage" data-stage="advocate"><header><span class="stage-no">5</span><h2>Devil's advocate</h2><span class="stage-status"></span></header><div class="stage-body"><ul class="variants" id="variants"></ul></div></article>
+      <article class="stage" data-stage="verdict"><header><span class="stage-no">6</span><h2>Verdict</h2><span class="stage-status"></span></header><div class="stage-body"></div></article>
+    </div>
+  </section>
+
+  <!-- ===== LEDGER ===== -->
+  <section id="view-ledger" class="view hidden">
+    <div class="run-head"><div><div class="eyebrow">Public ledger</div><h1>Every claim ever sealed here</h1><p class="lede small">Append-only and hash-chained. A sealed rule can never be edited after its verdict. <span id="chain-status"></span></p></div></div>
+    <section class="scoreboard" id="scoreboard-ledger"></section>
+    <div class="table-wrap"><table class="ledger" id="ledger-table"><thead><tr><th>Sealed (UTC)</th><th>Claim</th><th>Asset</th><th>Rule</th><th>Trades</th><th>Mean/trade</th><th>Verdict</th><th>Hash</th></tr></thead><tbody></tbody></table></div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p><b>Falsify tests beliefs about the past.</b> It is not investment advice and makes no prediction. Built for the Meta Global AI Developer Hackathon 2026 (Indie track, “Build for Your World”) on Meta's open-weight <b>Muse Glimmer 30B</b>. Data: Binance public candles (no account needed) or your own CSV.</p>
+</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

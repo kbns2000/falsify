@@ -37,7 +37,7 @@ class ClaimSpec(BaseModel):
     title: str = Field(..., min_length=3, max_length=120)
     belief_text: str = Field(..., min_length=3, max_length=2000)
     asset: str = Field(..., description="Dataset asset id, e.g. BTC/USDT")
-    dataset_id: str = "builtin:top10_daily"
+    dataset_id: str = "builtin:binance_daily"
     timeframe: Literal["1d", "4h", "1h", "15m", "1m"] = "1d"
     direction: Literal["long", "short"] = "long"
     entry: str = Field(..., description="DSL condition evaluated at the close of each bar")

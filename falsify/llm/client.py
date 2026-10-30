@@ -118,7 +118,10 @@ class LLM:
         raise LLMError("model call failed after %d attempts: %s" % (retries + 1, str(last)[:300]))
 
     def usage_dict(self) -> dict:
-        return {"provider": self.provider, "model": self.model, "label": self.label, "open_weights": self.open_weights, "calls": self.usage.calls, "prompt_tokens": self.usage.prompt_tokens, "completion_tokens": self.usage.completion_tokens, "seconds": round(self.usage.seconds, 2)}
+        d = {"provider": self.provider, "model": self.model, "label": self.label, "open_weights": self.open_weights, "calls": self.usage.calls, "prompt_tokens": self.usage.prompt_tokens, "completion_tokens": self.usage.completion_tokens, "seconds": round(self.usage.seconds, 2)}
+        if getattr(self, "degraded_from", None):
+            d["degraded_from"] = self.degraded_from
+        return d
 
 
 _FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.S)

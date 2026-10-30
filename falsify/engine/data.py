@@ -89,26 +89,74 @@ def _normalise(df: pd.DataFrame, asset: str | None = None) -> pd.DataFrame:
     return out[["asset"] + REQUIRED]
 
 
-@lru_cache(maxsize=1)
-def _builtin() -> pd.DataFrame:
-    path = os.path.join(DATA_DIR, "top10_daily.csv")
+BUILTINS = {
+    "builtin:binance_daily": {
+        "file": "binance_daily.csv",
+        "label": "10 coins · daily · 2017→2026 (Binance public)",
+        "timeframe": "1d",
+        "source": "Binance public klines via scripts/fetch_public_candles.py",
+        "license": "exchange public data",
+    },
+    "builtin:btcusdt_1h": {
+        "file": "btcusdt_1h.csv",
+        "label": "BTC/USDT · hourly · 2020→2026 (Binance public)",
+        "timeframe": "1h",
+        "source": "Binance public klines via scripts/fetch_public_candles.py",
+        "license": "exchange public data",
+    },
+    "builtin:top10_daily": {
+        "file": "top10_daily.csv",
+        "label": "10 coins · daily · 2024→2026 (HF dataset, CC0)",
+        "timeframe": "1d",
+        "source": "HF gokulalex/top10-crypto-daily-ohlcv-2024-2026",
+        "license": "CC0-1.0",
+    },
+}
+DEFAULT_DATASET = "builtin:binance_daily"
+
+
+@lru_cache(maxsize=8)
+def _builtin(dataset_id: str = DEFAULT_DATASET) -> pd.DataFrame:
+    meta = BUILTINS.get(dataset_id)
+    if meta is None:
+        raise DataError("Unknown dataset %s" % dataset_id)
+    path = os.path.join(DATA_DIR, meta["file"])
+    if not os.path.exists(path):
+        raise DataError("Dataset file missing: %s (run scripts/fetch_public_candles.py)" % meta["file"])
     raw = pd.read_csv(path)
     return _normalise(raw)
 
 
-def builtin_info() -> DatasetInfo:
-    df = _builtin()
+def builtin_info(dataset_id: str = DEFAULT_DATASET) -> DatasetInfo:
+    meta = BUILTINS[dataset_id]
+    df = _builtin(dataset_id)
     return DatasetInfo(
-        id="builtin:top10_daily",
-        label="Top-10 crypto, daily (Binance spot, CC0)",
-        timeframe="1d",
-        source="HF gokulalex/top10-crypto-daily-ohlcv-2024-2026",
-        license="CC0-1.0",
+        id=dataset_id,
+        label=meta["label"],
+        timeframe=meta["timeframe"],
+        source=meta["source"],
+        license=meta["license"],
         assets=sorted(df["asset"].unique().tolist()),
         rows=len(df),
         start=str(df["ts"].min().date()),
         end=str(df["ts"].max().date()),
     )
+
+
+def list_builtins() -> list[DatasetInfo]:
+    out = []
+    for did in BUILTINS:
+        try:
+            out.append(builtin_info(did))
+        except DataError:
+            continue
+    return out
+
+
+def dataset_info(dataset_id: str) -> DatasetInfo:
+    if dataset_id.startswith("builtin"):
+        return builtin_info(dataset_id)
+    return upload_info(dataset_id)
 
 
 def upload_info(dataset_id: str) -> DatasetInfo:
@@ -126,13 +174,13 @@ def upload_info(dataset_id: str) -> DatasetInfo:
     )
 
 
-def list_assets(dataset_id: str = "builtin:top10_daily") -> list[str]:
+def list_assets(dataset_id: str = DEFAULT_DATASET) -> list[str]:
     return sorted(_frame_for(dataset_id)["asset"].unique().tolist())
 
 
 def _frame_for(dataset_id: str) -> pd.DataFrame:
     if dataset_id.startswith("builtin"):
-        return _builtin()
+        return _builtin(dataset_id)
     if dataset_id.startswith("upload:"):
         path = os.path.join(UPLOAD_DIR, dataset_id.split(":", 1)[1] + ".parquet")
         if not os.path.exists(path):
@@ -141,11 +189,11 @@ def _frame_for(dataset_id: str) -> pd.DataFrame:
     raise DataError("Unknown dataset %s" % dataset_id)
 
 
-def resolve_asset(name: str, dataset_id: str = "builtin:top10_daily") -> str:
+def resolve_asset(name: str, dataset_id: str = DEFAULT_DATASET) -> str:
     """Map loose names (btc, BTCUSDT, bitcoin) onto a dataset asset id."""
     assets = list_assets(dataset_id)
     key = name.strip().upper().replace("-", "/").replace("_", "/")
-    nick = {"BITCOIN": "BTC", "ETHER": "ETH", "ETHEREUM": "ETH", "SOLANA": "SOL", "RIPPLE": "XRP", "DOGECOIN": "DOGE", "CARDANO": "ADA", "AVALANCHE": "AVAX", "CHAINLINK": "LINK", "TONCOIN": "TON", "BINANCE COIN": "BNB"}
+    nick = {"BITCOIN": "BTC", "ETHER": "ETH", "ETHEREUM": "ETH", "SOLANA": "SOL", "RIPPLE": "XRP", "DOGECOIN": "DOGE", "CARDANO": "ADA", "AVALANCHE": "AVAX", "CHAINLINK": "LINK", "TONCOIN": "TON", "BINANCE COIN": "BNB", "LITECOIN": "LTC"}
     key = nick.get(key, key)
     for a in assets:
         if key == a.upper():
@@ -157,7 +205,7 @@ def resolve_asset(name: str, dataset_id: str = "builtin:top10_daily") -> str:
     raise DataError("Asset %r not in dataset. Available: %s" % (name, ", ".join(assets)))
 
 
-def load(asset: str, dataset_id: str = "builtin:top10_daily", start: str | None = None, end: str | None = None) -> pd.DataFrame:
+def load(asset: str, dataset_id: str = DEFAULT_DATASET, start: str | None = None, end: str | None = None) -> pd.DataFrame:
     df = _frame_for(dataset_id)
     asset = resolve_asset(asset, dataset_id)
     out = df[df["asset"] == asset].copy()

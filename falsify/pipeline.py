@@ -1,6 +1,7 @@
 """Orchestrates one claim from belief text to verdict, emitting progress events."""
 from __future__ import annotations
 
+import os
 import time
 import traceback
 from typing import Callable
@@ -14,16 +15,35 @@ from .llm.client import LLM, LLMError
 Emit = Callable[[str, dict], None]
 
 
+def _maybe_fallback(llm: LLM, emit: Emit) -> LLM:
+    """If the configured model route is dead (no credits, bad key, outage) fall back to the offline stub
+    so the deterministic engine still works. The UI shows the degraded provider label."""
+    if os.environ.get("FALSIFY_LLM_FALLBACK", "offline") != "offline":
+        return llm
+    try:
+        llm.chat([{"role": "user", "content": "Reply with the single word OK."}], max_tokens=5, retries=0)
+        llm._probed = True
+        return llm
+    except LLMError as e:
+        emit("provider.fallback", {"from": llm.label, "error": str(e)[:200]})
+        fb = LLM("offline")
+        fb.label = "Offline stub (model route unavailable: %s)" % str(e)[:80]
+        fb.degraded_from = llm.label
+        return fb
+
+
 def _load_for(spec: ClaimSpec):
     return data.load(spec.asset, spec.dataset_id, spec.start, spec.end)
 
 
-def run_claim(belief: str, *, dataset_id: str = "builtin:top10_daily", asset_hint: str | None = None, emit: Emit | None = None, llm: LLM | None = None, claim_id: str | None = None) -> dict:
+def run_claim(belief: str, *, dataset_id: str = data.DEFAULT_DATASET, asset_hint: str | None = None, emit: Emit | None = None, llm: LLM | None = None, claim_id: str | None = None, searcher: str | None = None) -> dict:
     emit = emit or (lambda *_: None)
     t0 = time.time()
     llm = llm or LLM()
+    if llm.provider != "offline" and not getattr(llm, "_probed", False):
+        llm = _maybe_fallback(llm, emit)
     claim_id = claim_id or ledger.new_id()
-    info = data.builtin_info() if dataset_id.startswith("builtin") else data.upload_info(dataset_id)
+    info = data.dataset_info(dataset_id)
     assets = info.assets
     resolve = lambda name: data.resolve_asset(name, dataset_id)
     result: dict = {"id": claim_id, "belief": belief, "dataset": info.__dict__, "provider": llm.usage_dict(), "stages": []}
@@ -58,8 +78,8 @@ def run_claim(belief: str, *, dataset_id: str = "builtin:top10_daily", asset_hin
     # 2 ---- seal
     stage("seal", "start", message="Sealing the rule before looking at any result")
     sealed = seal(spec, ledger.last_hash())
-    prior = ledger.count_for_asset(spec.asset)
-    ledger.append({"id": claim_id, "kind": "claim", "title": spec.title, "asset": spec.asset, "entry": spec.entry, "bars": spec.exit.bars, "direction": spec.direction, "belief": belief, "language": spec.language, "spec_hash": sealed["spec_hash"], "prev_hash": sealed["prev_hash"], "sealed_at": sealed["sealed_at"], "canonical": sealed["canonical"], "verdict": None, "provider": llm.label})
+    prior = ledger.count_for_asset(spec.asset, searcher)
+    ledger.append({"id": claim_id, "kind": "claim", "searcher": searcher, "title": spec.title, "asset": spec.asset, "entry": spec.entry, "bars": spec.exit.bars, "direction": spec.direction, "belief": belief, "language": spec.language, "spec_hash": sealed["spec_hash"], "prev_hash": sealed["prev_hash"], "sealed_at": sealed["sealed_at"], "canonical": sealed["canonical"], "verdict": None, "provider": llm.label})
     result["seal"] = {k: sealed[k] for k in ("spec_hash", "prev_hash", "sealed_at")}
     result["seal"]["prior_claims_same_asset"] = prior
     stage("seal", "done", **result["seal"])

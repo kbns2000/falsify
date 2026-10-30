@@ -3,9 +3,12 @@ __pycache__/
 *.pyc
 .pytest_cache/
 ledger/*.jsonl
+ledger/results/
+ledger/_seed_build/
 !ledger/.keep
 data/uploads/
 .env
 *.mp4
 *.webm
 node_modules/
+!ledger/seed/

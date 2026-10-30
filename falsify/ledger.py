@@ -39,8 +39,46 @@ def last_hash() -> str:
     return es[-1]["spec_hash"] if es else ""
 
 
-def count_for_asset(asset: str) -> int:
-    return sum(1 for e in entries() if e.get("asset") == asset and e.get("kind", "claim") == "claim")
+def count_for_asset(asset: str, searcher: str | None = None) -> int:
+    """How many claims this searcher (anonymous per-browser id) already sealed on the asset."""
+    return sum(1 for e in entries() if e.get("asset") == asset and e.get("kind", "claim") == "claim" and (searcher is None or e.get("searcher") == searcher))
+
+
+SEED_DIR = os.path.join(ROOT, "ledger", "seed")
+
+
+def seed_if_empty() -> int:
+    """On a fresh deployment, start the ledger from the committed seed (claims run with a real model)."""
+    _ensure()
+    if entries():
+        return 0
+    seed_file = os.path.join(SEED_DIR, "claims.jsonl")
+    if not os.path.exists(seed_file):
+        return 0
+    import shutil
+    shutil.copyfile(seed_file, LEDGER_FILE)
+    seed_results = os.path.join(SEED_DIR, "results")
+    n = 0
+    if os.path.isdir(seed_results):
+        for fn in os.listdir(seed_results):
+            if fn.endswith(".json"):
+                shutil.copyfile(os.path.join(seed_results, fn), os.path.join(RESULTS_DIR, fn))
+                n += 1
+    return len(entries())
+
+
+def export_seed() -> int:
+    """Copy the current ledger into ledger/seed so it can be committed."""
+    os.makedirs(os.path.join(SEED_DIR, "results"), exist_ok=True)
+    import shutil
+    shutil.copyfile(LEDGER_FILE, os.path.join(SEED_DIR, "claims.jsonl"))
+    n = 0
+    for e in entries():
+        src = os.path.join(RESULTS_DIR, e["id"] + ".json")
+        if os.path.exists(src):
+            shutil.copyfile(src, os.path.join(SEED_DIR, "results", e["id"] + ".json"))
+            n += 1
+    return n
 
 
 def new_id() -> str:

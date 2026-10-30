@@ -17,7 +17,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(prog="falsify")
     ap.add_argument("belief", help="the belief to test, any language")
     ap.add_argument("--asset", default=None, help="asset hint, e.g. BTC or SOL/USDT")
-    ap.add_argument("--dataset", default="builtin:top10_daily")
+    ap.add_argument("--dataset", default=None, help="dataset id (default: 10 coins daily since 2017)")
     ap.add_argument("--json", default=None, help="write the full result JSON here")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args(argv)
@@ -40,7 +40,7 @@ def main(argv=None):
         elif kind.startswith("formalize."):
             print("    agent: %s %s" % (kind.split(".")[1], payload.get("reason", "")), file=sys.stderr)
 
-    res = pipeline.run_claim(a.belief, dataset_id=a.dataset, asset_hint=a.asset, emit=emit, llm=llm)
+    res = pipeline.run_claim(a.belief, dataset_id=a.dataset or pipeline.data.DEFAULT_DATASET, asset_hint=a.asset, emit=emit, llm=llm)
     if "error" in res:
         print("ERROR: %s" % res["error"], file=sys.stderr)
         return 2

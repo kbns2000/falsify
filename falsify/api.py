@@ -33,8 +33,16 @@ _sem = threading.Semaphore(MAX_CONCURRENT)
 
 class ClaimIn(BaseModel):
     belief: str = Field(..., min_length=3, max_length=2000)
-    dataset_id: str = "builtin:top10_daily"
+    dataset_id: str = data.DEFAULT_DATASET
     asset_hint: Optional[str] = Field(None, max_length=40)
+    searcher: Optional[str] = Field(None, max_length=64, description="anonymous per-browser id used for the multiple-testing correction")
+
+
+@app.on_event("startup")
+def _startup():
+    n = ledger.seed_if_empty()
+    if n:
+        print("ledger seeded with %d claims" % n)
 
 
 def _provider_info() -> dict:
@@ -54,11 +62,11 @@ def healthz():
 @app.get("/api/meta")
 def meta():
     info = data.builtin_info()
-    return {"version": __version__, "provider": _provider_info(), "dataset": info.__dict__, "grammar": grammar_text(), "scoreboard": ledger.scoreboard(), "chain": ledger.verify_chain()}
+    return {"version": __version__, "provider": _provider_info(), "dataset": info.__dict__, "datasets": [d.__dict__ for d in data.list_builtins()], "grammar": grammar_text(), "scoreboard": ledger.scoreboard(), "chain": ledger.verify_chain()}
 
 
 @app.get("/api/assets")
-def assets(dataset_id: str = "builtin:top10_daily"):
+def assets(dataset_id: str = data.DEFAULT_DATASET):
     try:
         return {"assets": data.list_assets(dataset_id)}
     except data.DataError as e:
@@ -99,7 +107,7 @@ def create_claim(body: ClaimIn):
     def work():
         with _sem:
             try:
-                res = pipeline.run_claim(body.belief, dataset_id=body.dataset_id, asset_hint=body.asset_hint, emit=emit, claim_id=claim_id)
+                res = pipeline.run_claim(body.belief, dataset_id=body.dataset_id, asset_hint=body.asset_hint, emit=emit, claim_id=claim_id, searcher=(body.searcher or "")[:64] or None)
                 job["result"] = res
             except Exception as e:  # pragma: no cover
                 job["result"] = {"id": claim_id, "error": {"kind": "crash", "message": str(e)[:400]}}
@@ -164,7 +172,7 @@ def claim_result(claim_id: str):
 @app.get("/api/ledger")
 def get_ledger(limit: int = 100):
     es = ledger.entries()
-    es = [{k: v for k, v in e.items() if k != "canonical"} for e in es]
+    es = [{k: v for k, v in e.items() if k not in ("canonical", "searcher")} for e in es]
     return {"entries": list(reversed(es))[:limit], "scoreboard": ledger.scoreboard(), "chain": ledger.verify_chain()}
 
 
