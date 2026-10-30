@@ -69,8 +69,10 @@ def seed_if_empty() -> int:
 
 def export_seed() -> int:
     """Copy the current ledger into ledger/seed so it can be committed."""
-    os.makedirs(os.path.join(SEED_DIR, "results"), exist_ok=True)
     import shutil
+    # start from an empty results folder so results of an older seed do not linger
+    shutil.rmtree(os.path.join(SEED_DIR, "results"), ignore_errors=True)
+    os.makedirs(os.path.join(SEED_DIR, "results"), exist_ok=True)
     shutil.copyfile(LEDGER_FILE, os.path.join(SEED_DIR, "claims.jsonl"))
     n = 0
     for e in entries():

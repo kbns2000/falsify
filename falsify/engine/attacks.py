@@ -110,6 +110,8 @@ def time_split(bt: B.BacktestResult, df: pd.DataFrame) -> dict:
         status, head = "warn", "All trades fall in one half of the data (%s)." % ("first" if s1["n"] else "second")
     elif both_pos:
         status, head = "pass", "Positive in both halves: %s (n=%d) then %s (n=%d)." % (_fmt(s1["mean_net"]), s1["n"], _fmt(s2["mean_net"]), s2["n"])
+    elif (s1["mean_net"] or 0) <= 0 and (s2["mean_net"] or 0) <= 0:
+        status, head = "fail", "Negative in both halves: %s (n=%d) then %s (n=%d)." % (_fmt(s1["mean_net"]), s1["n"], _fmt(s2["mean_net"]), s2["n"])
     else:
         status, head = "fail", "Sign flips between halves: %s (n=%d) then %s (n=%d)." % (_fmt(s1["mean_net"]), s1["n"], _fmt(s2["mean_net"]), s2["n"])
     return finding("time_split", "Does it hold in both halves of the data?", status, head, first_half=s1, second_half=s2, split_at=str(mid.date()), per_year=per_year)

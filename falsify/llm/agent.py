@@ -128,6 +128,28 @@ def formalize(llm: LLM, belief: str, *, dataset_id: str, assets: list[str], data
     raise LLMError("Could not turn the belief into a valid rule after %d attempts: %s" % (MAX_ATTEMPTS, last_err))
 
 
+_ISO_TS = re.compile(r"^(\d{4}-\d{2}-\d{2})T\d{2}:\d{2}:\d{2}.*$")
+
+
+def _tidy(x, key: str = ""):
+    """Round numbers and shorten timestamps before the reporter sees them, so it cannot echo
+    16-digit floats or full ISO timestamps into the report."""
+    if isinstance(x, dict):
+        return {k: _tidy(v, k) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_tidy(v, key) for v in x]
+    if isinstance(x, bool) or x is None:
+        return x
+    if isinstance(x, float):
+        if "p_value" in key or key in ("alpha", "alpha_adj", "p"):
+            return round(x, 3)
+        return round(x, 2)
+    if isinstance(x, str):
+        m = _ISO_TS.match(x)
+        return m.group(1) if m else x
+    return x
+
+
 _DAYS = [("monday", "월요일"), ("tuesday", "화요일"), ("wednesday", "수요일"), ("thursday", "목요일"), ("friday", "금요일"), ("saturday", "토요일"), ("sunday", "일요일")]
 
 
@@ -204,6 +226,7 @@ def write_report(llm: LLM, spec: ClaimSpec, bt: dict, findings: list[dict], verd
     compact_f = [{"name": f["name"], "status": f["status"], "headline": f["headline"]} for f in findings]
     compact_v = [{"label": v.get("label"), "why": v.get("why"), "result": v.get("result")} for v in variants]
     payload = {"language": spec.language, "rule": {"title": spec.title, "plain_language": spec.plain_language, "entry": spec.entry, "exit": sd["exit"], "direction": spec.direction, "asset": spec.asset, "criterion": sd["criterion"]}, "backtest": compact_bt, "findings": compact_f, "verdict": verdict, "agent_counter_tests": compact_v, "original_belief": spec.belief_text}
+    payload = _tidy(payload)
     msg = [{"role": "system", "content": prompts.REPORTER_SYSTEM}, {"role": "user", "content": "Language: %s\n\n%s" % (spec.language, json.dumps(payload, ensure_ascii=False, default=str))}]
     try:
         reply = llm.chat(msg, max_tokens=1800, temperature=0.3)

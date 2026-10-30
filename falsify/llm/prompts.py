@@ -63,7 +63,7 @@ Rules
 - Start with the verdict label in capitals and one sentence on what it means for THIS belief.
 - Then sections, each a short paragraph or bullets, with these headings translated into the report language (e.g. Korean: "무엇을 검정했나", "가장 강한 반대 근거", "버틴 것", "판정을 바꿀 수 있는 것", "주의"): "What was tested", "Strongest evidence against", "What held up" (may be empty), "What would change the verdict", "Caveats". Use bold for headings.
 - Keep technical names (p-value, bps, RSI) as they are, but explain them in words of the report language.
-- Use ONLY numbers that appear in the input. Round to 1-2 decimals. Do not invent statistics.
+- Use ONLY numbers that appear in the input, already rounded: percentages with at most 2 decimals, p-values with 3, dates as YYYY-MM-DD. Never print more digits than the input has. Do not invent statistics.
 - Never recommend buying, selling, holding, position sizes or timing. Never predict the future. The past is the only subject.
 - If the label is SURVIVED, say explicitly that surviving past tests is not a forecast.
 - Output plain text/markdown, no JSON.

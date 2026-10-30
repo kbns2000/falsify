@@ -28,7 +28,7 @@ NARRATION = {
     "attack": "Now the attacks. Two thousand random portfolios with the same number of trades and the same holding period: where does the rule land? What happens at realistic fees? Does it hold in both halves of nine years? Do nearby parameters work, or only the exact ones, the signature of curve fitting? Does it travel to other coins?",
     "advocate": "Then Muse Glimmer argues against the belief. It proposes counter-tests specific to this claim, the mirror-image trade, a longer horizon, the coin you actually trade, and the engine runs them under the same rules.",
     "verdict": "The verdict is decided by the numbers, never by the model. Falsified, fragile, survived for now, or inconclusive. The model explains it in the language you wrote in: what was tested, the strongest evidence against, what held up, and what would change the verdict.",
-    "second": "A second belief, in English. Notice the multiple-testing attack: it counts how many beliefs you personally have sealed on this asset. Your twentieth idea is held to a stricter bar than a stranger's first. Try enough ideas and one will look good by chance. Falsify remembers.",
+    "second": "A second belief, in English, on the same coin. The multiple-testing attack counts how many beliefs you personally have sealed on this asset, and every extra try raises the bar for the next one. Try enough ideas and one will look good by chance. Falsify remembers.",
     "ledger": "Every claim ever sealed stays in an append-only, hash-chained ledger that anyone can recompute. The rule can never be edited after its verdict.",
     "upload": "Bring your own C S V to test beliefs about any market.",
     "outro": "Falsify never tells you what to buy. It tells you whether your belief survived an honest attempt to break it. Open weights, open ledger, open source.",
@@ -147,7 +147,7 @@ def main():
                 pad = nlen - vlen
         total_len = vlen + pad
         v = work / ("v_%02d.mp4" % i)
-        vf = "fps=30,scale=1280:800:flags=lanczos,format=yuv420p"
+        vf = "fps=30,scale=1280:800:flags=lanczos,pad=1280:880:0:0:color=0x0e1013,format=yuv420p"
         if pad > 0:
             vf += ",tpad=stop_mode=clone:stop_duration=%.3f" % pad
         ff("-ss", "%.3f" % s["start"], "-to", "%.3f" % s["end"], "-i", raw, "-vf", vf, "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", v)
@@ -203,7 +203,7 @@ def main():
         if not a.no_burn:
             print("ffmpeg has no subtitles filter: wrote sidecar .srt only")
     else:
-        ff("-i", joined.name, "-vf", "subtitles=final.srt:force_style='FontName=Arial,FontSize=9,PrimaryColour=&H00FFFFFF,BackColour=&H90000000,OutlineColour=&H90000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=22'", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "copy", "final_burn.mp4", cwd=work)
+        ff("-i", joined.name, "-vf", "subtitles=final.srt:force_style='FontName=Arial,FontSize=9,PrimaryColour=&H00FFFFFF,BackColour=&H90000000,OutlineColour=&H90000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=6'", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "copy", "final_burn.mp4", cwd=work)
         shutil.copy(work / "final_burn.mp4", out)
     json.dump({"total": duration(out), "speed_factor": factor, "timeline": timeline}, open(out.with_suffix(".timeline.json"), "w"), indent=1, ensure_ascii=False)
     print("wrote %s  (%.1fs)  + %s" % (out, duration(out), srt.name))
