@@ -21,7 +21,7 @@ def _maybe_fallback(llm: LLM, emit: Emit) -> LLM:
     if os.environ.get("FALSIFY_LLM_FALLBACK", "offline") != "offline":
         return llm
     try:
-        llm.chat([{"role": "user", "content": "Reply with the single word OK."}], max_tokens=5, retries=0)
+        llm.chat([{"role": "user", "content": "Reply with the single word OK."}], max_tokens=64, retries=0)
         llm._probed = True
         return llm
     except LLMError as e:

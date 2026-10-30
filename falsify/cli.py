@@ -38,7 +38,7 @@ def main(argv=None):
             r = v.get("result") or {}
             print("    ~ %s → mean %s%% (n=%s)" % (v["label"], None if r.get("mean_net") is None else round(r["mean_net"], 2), r.get("n_trades")), file=sys.stderr)
         elif kind.startswith("formalize."):
-            print("    agent: %s %s" % (kind.split(".")[1], payload.get("reason", "")), file=sys.stderr)
+            print("    agent: %s #%s %s" % (kind.split(".")[1], payload.get("n", ""), payload.get("reason", "")), file=sys.stderr)
 
     res = pipeline.run_claim(a.belief, dataset_id=a.dataset or pipeline.data.DEFAULT_DATASET, asset_hint=a.asset, emit=emit, llm=llm)
     if "error" in res:

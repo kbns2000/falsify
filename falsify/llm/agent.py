@@ -131,7 +131,7 @@ def propose_variants(llm: LLM, spec: ClaimSpec, assets: list[str], resolve_asset
             {"role": "user", "content": "Assets available: %s\n\nPre-registered rule (JSON):\n%s\n\nOriginal belief:\n%s" % (", ".join(assets), json.dumps(base, ensure_ascii=False), spec.belief_text)},
         ]
         try:
-            reply = llm.chat(msg, json_mode=True, max_tokens=1200)
+            reply = llm.chat(msg, json_mode=True, max_tokens=2500)
             raw = extract_json(reply["content"])
         except (LLMError, ValueError) as e:
             return [{"label": "advocate unavailable", "why": str(e)[:200], "spec": None}]
@@ -166,10 +166,10 @@ def write_report(llm: LLM, spec: ClaimSpec, bt: dict, findings: list[dict], verd
     payload = {"language": spec.language, "rule": {"title": spec.title, "plain_language": spec.plain_language, "entry": spec.entry, "exit": sd["exit"], "direction": spec.direction, "asset": spec.asset, "criterion": sd["criterion"]}, "backtest": compact_bt, "findings": compact_f, "verdict": verdict, "agent_counter_tests": compact_v, "original_belief": spec.belief_text}
     msg = [{"role": "system", "content": prompts.REPORTER_SYSTEM}, {"role": "user", "content": "Language: %s\n\n%s" % (spec.language, json.dumps(payload, ensure_ascii=False, default=str))}]
     try:
-        reply = llm.chat(msg, max_tokens=900, temperature=0.3)
+        reply = llm.chat(msg, max_tokens=1800, temperature=0.3)
         text = re.sub(r"<think>.*?</think>", "", reply["content"], flags=re.S).strip()
         if not text:
             raise LLMError("empty report")
         return text
     except LLMError as e:
-        return stub.report(sd, bt, findings, verdict, variants) + "\n\n(Model report unavailable: %s)" % str(e)[:160]
+        return stub.report(sd, bt, findings, verdict, variants, model_failed=True) + "\n\n(Model report unavailable: %s)" % str(e)[:160]

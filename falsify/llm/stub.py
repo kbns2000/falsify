@@ -116,7 +116,7 @@ def variants(spec: dict, assets: list[str]) -> dict:
     return {"variants": out}
 
 
-def report(spec: dict, bt: dict, findings: list[dict], verdict: dict, variants: list[dict]) -> str:
+def report(spec: dict, bt: dict, findings: list[dict], verdict: dict, variants: list[dict], model_failed: bool = False) -> str:
     lang = spec.get("language", "en")
     label = verdict["label"]
     fails = [f for f in findings if f["status"] == "fail"]
@@ -129,7 +129,7 @@ def report(spec: dict, bt: dict, findings: list[dict], verdict: dict, variants: 
         lines = [head, "", "**무엇을 검정했나**", spec.get("plain_language", ""), "", "**가장 강한 반대 근거**"]
         lines += (["- " + f["headline"] for f in fails] + ["- (약함) " + f["headline"] for f in warns]) or ["- 없음"]
         lines += ["", "**버틴 것**"] + (["- " + f["headline"] for f in passes[:3]] or ["- 없음"])
-        lines += ["", "**판정을 바꿀 수 있는 것**", "- 같은 규칙을 더 긴 기간·다른 자산에서 사전등록해 다시 검정", "", "**주의**", "- 과거 자료만 봤습니다. 매수·매도 조언이 아닙니다. (오프라인 모드: 모델 없이 생성된 보고서)"]
+        lines += ["", "**판정을 바꿀 수 있는 것**", "- 같은 규칙을 더 긴 기간·다른 자산에서 사전등록해 다시 검정", "", "**주의**", "- 과거 자료만 봤습니다. 매수·매도 조언이 아닙니다. " + ("(모델 보고서가 실패해 숫자만으로 만든 요약입니다)" if model_failed else "(오프라인 모드: 모델 없이 생성된 보고서)")]
         if n:
             lines.insert(4, "거래 %d건, 거래당 평균 순수익 %.2f%%." % (n, mean or 0))
         return "\n".join(lines)
@@ -139,5 +139,5 @@ def report(spec: dict, bt: dict, findings: list[dict], verdict: dict, variants: 
         lines.append("%d trades, mean net return %.2f%% per trade." % (n, mean or 0))
     lines += ["", "**Strongest evidence against**"] + ((["- " + f["headline"] for f in fails] + ["- (weak) " + f["headline"] for f in warns]) or ["- none"])
     lines += ["", "**What held up**"] + (["- " + f["headline"] for f in passes[:3]] or ["- nothing"])
-    lines += ["", "**What would change the verdict**", "- Pre-register the same rule on a longer window or a different asset and test again.", "", "**Caveats**", "- Past data only. Not investment advice. (Offline mode: this report was generated without a model.)"]
+    lines += ["", "**What would change the verdict**", "- Pre-register the same rule on a longer window or a different asset and test again.", "", "**Caveats**", "- Past data only. Not investment advice. " + ("(The model report failed; this summary was built from the numbers alone.)" if model_failed else "(Offline mode: this report was generated without a model.)")]
     return "\n".join(lines)

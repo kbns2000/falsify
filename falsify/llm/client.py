@@ -71,7 +71,13 @@ class LLM:
             raise LLMError("%s is not set for provider %s" % (cfg["key_env"], self.provider))
         from openai import OpenAI  # imported lazily so the offline stub needs no network stack
 
-        self._client = OpenAI(base_url=os.environ.get("FALSIFY_LLM_BASE_URL", cfg["base_url"]), api_key=key or "none", timeout=float(os.environ.get("FALSIFY_LLM_TIMEOUT", "120")), max_retries=0)
+        # Self-hosted reasoning models (Muse Glimmer on Ollama) think before answering: give them low effort,
+        # extra token headroom and a longer timeout. All three are overridable by env.
+        local = self.provider == "custom"
+        self.reasoning_effort = os.environ.get("FALSIFY_LLM_REASONING_EFFORT", "low" if local else "").strip().lower() or None
+        self.extra_tokens = int(os.environ.get("FALSIFY_LLM_EXTRA_TOKENS", "1500" if local else "0"))
+        timeout = float(os.environ.get("FALSIFY_LLM_TIMEOUT", "300" if local else "120"))
+        self._client = OpenAI(base_url=os.environ.get("FALSIFY_LLM_BASE_URL", cfg["base_url"]), api_key=key or "none", timeout=timeout, max_retries=0)
 
     # ------------------------------------------------------------------ core
     def chat(self, messages: list[dict], *, json_mode: bool = False, max_tokens: int = 1500, temperature: float | None = None, tools: list[dict] | None = None, retries: int = 2) -> dict:
@@ -82,7 +88,9 @@ class LLM:
         for attempt in range(retries + 1):
             t0 = time.time()
             try:
-                kwargs = dict(model=self.model, messages=messages, max_tokens=max_tokens, temperature=self.temperature if temperature is None else temperature)
+                kwargs = dict(model=self.model, messages=messages, max_tokens=max_tokens + self.extra_tokens, temperature=self.temperature if temperature is None else temperature)
+                if self.reasoning_effort:
+                    kwargs["extra_body"] = {"reasoning_effort": self.reasoning_effort}
                 if json_mode:
                     kwargs["response_format"] = {"type": "json_object"}
                 if tools:
@@ -105,11 +113,19 @@ class LLM:
                     self.usage.prompt_tokens += int(getattr(u, "prompt_tokens", 0) or 0)
                     self.usage.completion_tokens += int(getattr(u, "completion_tokens", 0) or 0)
                 self.usage.log.append({"model": resp.model if hasattr(resp, "model") else self.model, "seconds": round(dt, 2), "prompt_tokens": getattr(u, "prompt_tokens", None) if u else None, "completion_tokens": getattr(u, "completion_tokens", None) if u else None})
+                if not content.strip() and not calls and choice.finish_reason == "length" and attempt < retries:
+                    # the model spent the whole budget thinking: retry once with double headroom
+                    max_tokens *= 2
+                    last = LLMError("empty reply (finish=length)")
+                    continue
                 return {"content": content, "tool_calls": calls, "finish_reason": choice.finish_reason}
             except Exception as e:  # transport / provider errors
                 last = e
                 msg = str(e)
                 # json_object unsupported by some providers -> retry without it
+                if "reasoning_effort" in msg and self.reasoning_effort:
+                    self.reasoning_effort = None  # server does not know the parameter
+                    continue
                 if json_mode and ("response_format" in msg or "json_object" in msg or "400" in msg):
                     json_mode = False
                     continue
