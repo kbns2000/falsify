@@ -97,6 +97,23 @@ def formalize(llm: LLM, belief: str, *, dataset_id: str, assets: list[str], data
                     return spec2, trace
                 except Exception as e2:  # keep the first valid spec
                     trace["attempts"].append({"n": attempt + 1, "ok": False, "error": str(e2)[:300]})
+            hint = _weekday_hint(belief, spec.entry)
+            if hint and attempt < MAX_ATTEMPTS:
+                # one-shot timing check: "buy on Monday" must fire at Sunday's close
+                messages.append({"role": "assistant", "content": text})
+                messages.append({"role": "user", "content": hint})
+                emit("formalize.repair", {"n": attempt, "reason": "weekday timing check"})
+                try:
+                    reply2 = llm.chat(messages, json_mode=True, max_tokens=900)
+                    obj2 = extract_json(reply2["content"])
+                    spec2 = _spec_from_json(obj2, belief, dataset_id, assets, resolve_asset, timeframe)
+                    bt2 = B.run(spec2, load_df(spec2))
+                    if bt2.n_signals > 0:
+                        trace["attempts"].append({"n": attempt + 1, "ok": True, "entry": spec2.entry, "n_signals": bt2.n_signals, "n_trades": bt2.n_trades, "note": "after weekday timing check", "raw": reply2["content"][:1500]})
+                        trace["assumptions"] = [str(a) for a in (obj2.get("assumptions") or trace["assumptions"])]
+                        return spec2, trace
+                except Exception as e2:
+                    trace["attempts"].append({"n": attempt + 1, "ok": False, "error": str(e2)[:300]})
             return spec, trace
         except UntestableBelief:
             trace["attempts"].append(rec)
@@ -109,6 +126,29 @@ def formalize(llm: LLM, belief: str, *, dataset_id: str, assets: list[str], data
             messages.append({"role": "assistant", "content": text})
             messages.append({"role": "user", "content": "Your JSON was rejected: %s\nReturn the corrected JSON object only." % last_err})
     raise LLMError("Could not turn the belief into a valid rule after %d attempts: %s" % (MAX_ATTEMPTS, last_err))
+
+
+_DAYS = [("monday", "월요일"), ("tuesday", "화요일"), ("wednesday", "수요일"), ("thursday", "목요일"), ("friday", "금요일"), ("saturday", "토요일"), ("sunday", "일요일")]
+
+
+def _weekday_hint(belief: str, entry: str) -> str | None:
+    """If the rule fires on the very weekday the belief names, the trade actually opens the day AFTER.
+    Ask the model once to confirm which day the person means to enter."""
+    m = re.search(r"dow\(\)\s*==\s*(\d)", entry)
+    if not m:
+        return None
+    k = int(m.group(1))
+    if k > 6:
+        return None
+    b = belief.lower()
+    en, ko = _DAYS[k]
+    if en not in b and en[:3] + " " not in b and ko not in b:
+        return None
+    prev = (k - 1) % 7
+    return ("Timing check: dow() == %d fires at the CLOSE of %s, so the position opens at the next bar's open, i.e. on %s. "
+            "If the person means to ENTER on %s (e.g. 'buy on %s'), the condition must be dow() == %d. "
+            "If they really mean a signal at %s's close, keep it. Return the final JSON object only."
+            % (k, en.title(), _DAYS[(k + 1) % 7][0].title(), en.title(), en.title(), prev, en.title()))
 
 
 def _friendly_error(e: Exception) -> str:

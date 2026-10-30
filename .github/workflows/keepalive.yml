@@ -1,0 +1,12 @@
+name: keepalive
+# Render's free tier sleeps after 15 idle minutes; keep the public demo awake during judging.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - run: curl -fsS --max-time 90 https://falsify-baxc.onrender.com/healthz || true
