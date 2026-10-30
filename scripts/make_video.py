@@ -203,7 +203,7 @@ def main():
         if not a.no_burn:
             print("ffmpeg has no subtitles filter: wrote sidecar .srt only")
     else:
-        ff("-i", joined.name, "-vf", "subtitles=final.srt:force_style='FontName=Arial,FontSize=20,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=1,Outline=1,Shadow=0,MarginV=28'", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "copy", "final_burn.mp4", cwd=work)
+        ff("-i", joined.name, "-vf", "subtitles=final.srt:force_style='FontName=Arial,FontSize=9,PrimaryColour=&H00FFFFFF,BackColour=&H90000000,OutlineColour=&H90000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=22'", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "copy", "final_burn.mp4", cwd=work)
         shutil.copy(work / "final_burn.mp4", out)
     json.dump({"total": duration(out), "speed_factor": factor, "timeline": timeline}, open(out.with_suffix(".timeline.json"), "w"), indent=1, ensure_ascii=False)
     print("wrote %s  (%.1fs)  + %s" % (out, duration(out), srt.name))
