@@ -141,7 +141,7 @@ def _tidy(x, key: str = ""):
     if isinstance(x, bool) or x is None:
         return x
     if isinstance(x, float):
-        if "p_value" in key or key in ("alpha", "alpha_adj", "p"):
+        if "p_value" in key or "p-value" in key or key in ("alpha", "alpha_adj", "p"):
             return round(x, 3)
         return round(x, 2)
     if isinstance(x, str):
@@ -218,19 +218,49 @@ def propose_variants(llm: LLM, spec: ClaimSpec, assets: list[str], resolve_asset
     return out
 
 
+_RESULT_LABELS = [
+    ("n_trades", "completed trades", 1), ("n_signals", "signals", 1), ("mean_net", "average net return per trade (%)", 1),
+    ("median_net", "median net return per trade (%)", 1), ("win_rate", "share of winning trades (%)", 100), ("total_net", "rule compounded (%)", 1),
+    ("max_drawdown", "worst drawdown (%)", 1), ("buy_and_hold_total", "just holding the asset, same window (%)", 1),
+    ("exposure", "time in the market (%)", 100), ("avg_bars_held", "average bars held", 1), ("p_value", "p-value vs random entries", 1),
+    ("window_start", "data from", None), ("window_end", "data to", None),
+]
+
+
+def _plain_results(r: dict, short: bool = False) -> dict:
+    """Readable labels and percent units, so the reporter never echoes internal field names or ratios."""
+    out = {}
+    for key, label, scale in _RESULT_LABELS:
+        if short and key in ("median_net", "max_drawdown", "buy_and_hold_total", "avg_bars_held", "window_start", "window_end", "n_signals", "total_net"):
+            continue
+        v = r.get(key)
+        if v is None:
+            continue
+        out[label] = v * scale if (scale and isinstance(v, (int, float)) and not isinstance(v, bool)) else v
+    if r.get("error"):
+        out["error"] = r["error"]
+    return out
+
+
+def _plain_criterion(c: dict) -> str:
+    metric = {"mean_net_return": "average net return per trade", "win_rate": "share of winning trades", "total_net_return": "total net return"}.get(c.get("metric"), c.get("metric"))
+    beats = {"random_entries": "random entries with the same holding period", "zero": "zero", "buy_and_hold": "just holding the asset"}.get(c.get("beats"), c.get("beats"))
+    return "%s must beat %s (one-sided p below %s, at least %s trades)" % (metric, beats, c.get("alpha"), c.get("min_trades"))
+
+
 def write_report(llm: LLM, spec: ClaimSpec, bt: dict, findings: list[dict], verdict: dict, variants: list[dict]) -> str:
     sd = spec.model_dump(mode="json")
     if llm.provider == "offline":
         return stub.report(sd, bt, findings, verdict, variants)
-    compact_bt = {k: bt.get(k) for k in ("asset", "window_start", "window_end", "n_signals", "n_trades", "mean_net", "median_net", "total_net", "max_drawdown", "buy_and_hold_total", "avg_bars_held", "t_stat")}
-    # every number the reporter sees is in percent units; ratios are converted so it cannot print "0.55%"
-    for k in ("win_rate", "exposure"):
-        if bt.get(k) is not None:
-            compact_bt[k + "_pct"] = float(bt[k]) * 100.0
-    compact_bt = {("%s_pct" % k if k in ("mean_net", "median_net", "total_net", "max_drawdown", "buy_and_hold_total") else k): v for k, v in compact_bt.items()}
-    compact_f = [{"name": f["name"], "status": f["status"], "headline": f["headline"]} for f in findings]
-    compact_v = [{"label": v.get("label"), "why": v.get("why"), "result": v.get("result")} for v in variants]
-    payload = {"language": spec.language, "rule": {"title": spec.title, "plain_language": spec.plain_language, "entry": spec.entry, "exit": sd["exit"], "direction": spec.direction, "asset": spec.asset, "criterion": sd["criterion"]}, "backtest": compact_bt, "findings": compact_f, "verdict": verdict, "agent_counter_tests": compact_v, "original_belief": spec.belief_text}
+    payload = {
+        "original belief": spec.belief_text,
+        "the rule": {"title": spec.title, "in plain words": spec.plain_language, "asset": spec.asset, "direction": spec.direction, "condition": spec.entry,
+                     "holding period (bars)": sd["exit"].get("bars"), "pass criterion": _plain_criterion(sd["criterion"])},
+        "results": _plain_results(bt),
+        "attacks": [{"attack": f["name"], "outcome": f["status"].upper(), "finding": f["headline"]} for f in findings],
+        "counter-tests proposed by the model": [{"name": v.get("label"), "why": v.get("why"), "result": _plain_results(v.get("result") or {}, short=True)} for v in variants],
+        "verdict": {"label": verdict.get("label"), "meaning": verdict.get("subtitle"), "p-value vs random entries": verdict.get("p_value"), "reasons": verdict.get("reasons"), "warnings": verdict.get("warnings"), "attacks failed": verdict.get("attacks_failed")},
+    }
     payload = _tidy(payload)
     msg = [{"role": "system", "content": prompts.REPORTER_SYSTEM}, {"role": "user", "content": "Language: %s\n\n%s" % (spec.language, json.dumps(payload, ensure_ascii=False, default=str))}]
     try:
