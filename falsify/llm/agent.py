@@ -222,7 +222,12 @@ def write_report(llm: LLM, spec: ClaimSpec, bt: dict, findings: list[dict], verd
     sd = spec.model_dump(mode="json")
     if llm.provider == "offline":
         return stub.report(sd, bt, findings, verdict, variants)
-    compact_bt = {k: bt.get(k) for k in ("asset", "window_start", "window_end", "n_signals", "n_trades", "mean_net", "median_net", "win_rate", "total_net", "max_drawdown", "buy_and_hold_total", "exposure", "avg_bars_held", "t_stat")}
+    compact_bt = {k: bt.get(k) for k in ("asset", "window_start", "window_end", "n_signals", "n_trades", "mean_net", "median_net", "total_net", "max_drawdown", "buy_and_hold_total", "avg_bars_held", "t_stat")}
+    # every number the reporter sees is in percent units; ratios are converted so it cannot print "0.55%"
+    for k in ("win_rate", "exposure"):
+        if bt.get(k) is not None:
+            compact_bt[k + "_pct"] = float(bt[k]) * 100.0
+    compact_bt = {("%s_pct" % k if k in ("mean_net", "median_net", "total_net", "max_drawdown", "buy_and_hold_total") else k): v for k, v in compact_bt.items()}
     compact_f = [{"name": f["name"], "status": f["status"], "headline": f["headline"]} for f in findings]
     compact_v = [{"label": v.get("label"), "why": v.get("why"), "result": v.get("result")} for v in variants]
     payload = {"language": spec.language, "rule": {"title": spec.title, "plain_language": spec.plain_language, "entry": spec.entry, "exit": sd["exit"], "direction": spec.direction, "asset": spec.asset, "criterion": sd["criterion"]}, "backtest": compact_bt, "findings": compact_f, "verdict": verdict, "agent_counter_tests": compact_v, "original_belief": spec.belief_text}
